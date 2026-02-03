@@ -17,7 +17,7 @@ export function LoadingScreen({ loadingState, onRetry }: Props) {
         {/* Logo placeholder */}
         <div className="mb-8">
           <img
-            src="/beri-logo.png"
+            src="/beri-logo.svg"
             alt="BERI Logo"
             className="w-24 h-24 mx-auto mb-4"
             onError={(e) => {
