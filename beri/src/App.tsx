@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect } from 'react'
 import type { Message, LoadingState, MessageSource, ContextChunk } from '@/types'
 import { SYSTEM_PROMPT } from '@/lib/constants'
 import { initStorage, loadChunksFromJSON, hasChunks } from '@/lib/storage'
-import { initEmbeddings, embed } from '@/lib/embeddings'
+import { initEmbeddings } from '@/lib/embeddings'
 import { checkWebGPU, initLLM, generate } from '@/lib/llm'
 import { retrieveContext, formatContext, extractSources } from '@/lib/retrieval'
 import { getFAQResponse } from '@/lib/faq'
@@ -180,11 +180,8 @@ function App() {
     setIsStreaming(true)
 
     try {
-      // First, get the query embedding for FAQ matching and retrieval
-      const queryEmbedding = await embed(content)
-
-      // Check FAQ cache first for instant responses
-      const faqResponse = getFAQResponse(queryEmbedding)
+      // Check FAQ cache first for instant responses (uses text matching)
+      const faqResponse = getFAQResponse(content)
       if (faqResponse) {
         console.log('FAQ cache hit - returning instant response')
         setMessages((prev) =>
@@ -203,8 +200,7 @@ function App() {
       }
 
       // No FAQ match - proceed with full RAG pipeline
-      // Retrieve relevant context (pass pre-computed embedding to avoid re-embedding)
-      const chunks = await retrieveContext(content, queryEmbedding)
+      const chunks = await retrieveContext(content)
       const context = formatContext(chunks)
       const sources: MessageSource[] = extractSources(chunks)
 
