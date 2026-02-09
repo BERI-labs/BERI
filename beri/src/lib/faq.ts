@@ -1,29 +1,44 @@
 /**
  * FAQ cache for instant responses to common questions
- * Uses simple text matching for reliable results
+ * Uses improved pattern matching with exclusions to reduce false positives
  */
 
 import type { MessageSource } from '@/types'
 
-/** Pre-computed FAQ entry */
+/** Pre-computed FAQ entry with exclusion patterns */
 interface FAQEntry {
-  patterns: string[]  // Multiple patterns to match
+  patterns: string[]           // Patterns that trigger this FAQ
+  excludePatterns?: string[]   // Patterns that prevent matching (even if patterns match)
+  minQueryLength?: number      // Minimum query length to match (default: 10)
   answer: string
   sources: MessageSource[]
 }
 
+/** Minimum query length for FAQ matching (prevents matching on very short queries) */
+const DEFAULT_MIN_QUERY_LENGTH = 10
+
 /**
  * Pre-computed FAQ entries with answers
  * Patterns are lowercase for case-insensitive matching
+ * More specific phrase-based patterns reduce false positives
  */
 const FAQ_ENTRIES: FAQEntry[] = [
   {
     patterns: [
       'can i use my phone',
-      'mobile phone',
-      'phone at school',
-      'use phone',
-      'phones allowed',
+      'use my phone at school',
+      'mobile phone policy',
+      'phone during school',
+      'phones allowed in school',
+      'bring my phone',
+      'phone in class',
+      'phone in lesson',
+    ],
+    excludePatterns: [
+      'charge my phone',
+      'broken phone',
+      'lost my phone',
+      'phone number',
     ],
     answer: `• Mobile phones must be switched off and kept in bags during lessons
 • Phones cannot be used around school premises during school hours
@@ -35,11 +50,21 @@ Source: Mobile Phone Policy`,
   },
   {
     patterns: [
-      'chatgpt',
-      'chat gpt',
-      'ai for homework',
-      'use ai',
-      'artificial intelligence homework',
+      'use chatgpt',
+      'use chat gpt',
+      'chatgpt for homework',
+      'chatgpt for essay',
+      'chatgpt for coursework',
+      'use ai for homework',
+      'use ai for assignment',
+      'ai to write',
+      'ai to help with homework',
+      'allowed to use ai',
+      'can i use ai',
+    ],
+    excludePatterns: [
+      'what is chatgpt',
+      'how does ai work',
     ],
     answer: `• AI tools like ChatGPT may be used for research and understanding concepts
 • You must not submit AI-generated text as your own work
@@ -51,11 +76,24 @@ Source: Academic Integrity Policy`,
   },
   {
     patterns: [
-      'plagiarise',
-      'plagiarism',
-      'plagiarize',
-      'copy work',
-      'copying',
+      'what happens if i plagiarise',
+      'what happens if i plagiarize',
+      'plagiarism consequences',
+      'caught plagiarising',
+      'caught plagiarizing',
+      'copy someone else',
+      'copy another student',
+      'copy from internet',
+      'submit copied work',
+      'copying homework',
+      'copying coursework',
+      'copying essay',
+    ],
+    excludePatterns: [
+      'copy notes',
+      'photocopy',
+      'copying from the board',
+      'copy down',
     ],
     answer: `• First offence: Written warning and resubmission required
 • Second offence: Detention and parental notification
@@ -67,11 +105,19 @@ Source: Academic Integrity Policy`,
   },
   {
     patterns: [
-      'personal data',
-      'my data',
-      'privacy',
-      'who can see',
-      'data protection',
+      'who can see my data',
+      'who can access my data',
+      'personal data access',
+      'my personal information',
+      'data protection policy',
+      'privacy policy',
+      'who sees my records',
+      'who has access to my information',
+      'school store my data',
+    ],
+    excludePatterns: [
+      'delete my data',
+      'change my data',
     ],
     answer: `• Only authorised school staff can access your personal data
 • Parents/guardians can request access to their child's records
@@ -84,14 +130,32 @@ Source: Data Protection Policy`,
 ]
 
 /**
- * Check if a query matches a cached FAQ using simple pattern matching
+ * Check if a query matches a cached FAQ using improved pattern matching
  * @param query - The user's question
  * @returns Matching FAQ entry or null if no match
  */
 export function checkFAQCache(query: string): FAQEntry | null {
-  const lowerQuery = query.toLowerCase()
+  const lowerQuery = query.toLowerCase().trim()
 
   for (const entry of FAQ_ENTRIES) {
+    const minLength = entry.minQueryLength ?? DEFAULT_MIN_QUERY_LENGTH
+
+    // Skip if query is too short
+    if (lowerQuery.length < minLength) {
+      continue
+    }
+
+    // Check if any exclude pattern matches (if so, skip this entry)
+    if (entry.excludePatterns) {
+      const excluded = entry.excludePatterns.some(exclude =>
+        lowerQuery.includes(exclude)
+      )
+      if (excluded) {
+        continue
+      }
+    }
+
+    // Check if any include pattern matches
     for (const pattern of entry.patterns) {
       if (lowerQuery.includes(pattern)) {
         console.log(`FAQ cache hit: matched pattern "${pattern}"`)
